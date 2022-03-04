@@ -8,7 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import linalg
 from scipy import integrate
-from scipy import interpolate
 
 #------------------------------SUB-ROTINAS-NECESSÁRIAS------------------------#
 
