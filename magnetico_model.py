@@ -364,12 +364,12 @@ def modelo_magnetico_temperatura(valores_entrada):
     uz = (np.cos(fi))
     vec_u = np.array([ux,uy,uz]) #direção do campo aplicado
     repeticoes = 5000
-    #M0 = valores_entrada[5]#Chute Inicial da Magnetização
+    M0 = valores_entrada[5]#Chute Inicial da Magnetização
     for j in range(colunas):
         Bx, By, Bz = field[j]*ux, field[j]*uy, field[j]*uz
         B_vec = np.array([Bx,By,Bz])
         for i in range(linhas):
-            M0 = valores_entrada[5]#Chute Inicial da Magnetização
+            #M0 = valores_entrada[5]#Chute Inicial da Magnetização
             for k in range(repeticoes): 
                 campos_efetivos = campo_efetivo(M0,g,Lambda,B_vec)
                 energia, psi  = hamiltoniano(J,campos_efetivos,Hc)
@@ -494,9 +494,11 @@ for count in con:
     new_diretorio = diretorio + composto + pasta1
     os.mkdir(new_diretorio)
 
+#------------------------EXEMPLO_1----------------------#
+
 miB = 0.0578838
 
-#-----------------------------------TÉRBIO-----------------------------------#
+#-----------------------------------TÉRBIO-----------------------------#
 
 HC_TB = campo_cristalino_cubico([0.02,60,7560,0.9],6.)
 J_TB = operador_momento_angular(6.)
@@ -505,7 +507,7 @@ DIC_FAC_TB = (miB)*(np.array([1,1,1]))
 lam_TB = 0.615
 mm_TB = 158.92 #Pesquisar
 
-#--------------------------------DISPRÓSIO------------------------------------#
+#-----------------------------------DY-----------------------------#
 
 HC_DY = campo_cristalino_cubico([-0.011,60,13860,0.3],15/2)
 J_DY = operador_momento_angular(15/2)
@@ -539,7 +541,7 @@ for k in con:
     parametro_de_troca = np.array([[lam11,lam12],[lam21,lam22]])
     entrada_nulo = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,np.array([0.]),0.,0.,T]
     saida_nulo = modelo_magnetico_temperatura(entrada_nulo)
-    pasta = diretorio + '\\x=' + k
+    pasta = diretorio + composto + '\\x=' + k
     for i in range(len(phi)):
         entrada = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,B,phi[i],theta[i],T]
         resultados = modelo_magnetico_temperatura(entrada)
