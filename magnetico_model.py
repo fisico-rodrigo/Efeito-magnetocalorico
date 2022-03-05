@@ -483,14 +483,19 @@ def modelo_magnetico_campo_magnetico(valores_entrada):
 #------------------------------------EXEMPLO_1--------------------------------------#
 import os
 
-diretorio = r'C:\Users\Rodrigo_Gabi\OneDrive\Rodrigo\pos_graduacao\compostos_magnetocalorico\Dy_(1-x)Tb_(x)Al_(2)_test'
+diretorio = R'C:\Users\Rod_Gabi\OneDrive\Rodrigo\pos_graduacao\compostos_magnetocalorico'#local em que está seu código
+
+composto = '\Dy_(1-x)Tb_(x)Al_(2)_test'
+
+os.mkdir(diretorio + composto)
+
 
 con = ['0.00','0.15','0.25','0.40'] #concentração de Tb
 
 for count in con:
     pasta1 = '\\x=' + count
-    new_diretorio = diretorio + pasta1
-    os.mkdir (new_diretorio)
+    new_diretorio = diretorio + composto + pasta1
+    os.mkdir(new_diretorio)
 
 miB = 0.0578838
 
