@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import linalg
 from scipy import integrate
+from scipy import interpolate
 
 #------------------------------SUB-ROTINAS-NECESSÁRIAS------------------------#
 
@@ -317,6 +318,7 @@ def funcao_entropia_magnetica(energia,temperatura):
                 Entropia = R*(np.log(Z) + (beta)*(epsolon))
             S.append(Entropia) 
     return S
+
 #------------------------------MODELOS MAGNÉTICOS-------------------------------#
 
 '''
@@ -365,12 +367,12 @@ def modelo_magnetico_temperatura(valores_entrada):
     uz = (np.cos(fi))
     vec_u = np.array([ux,uy,uz]) #direção do campo aplicado
     repeticoes = 5000
-    M0 = valores_entrada[5]#Chute Inicial da Magnetização
+    #M0 = valores_entrada[5]#Chute Inicial da Magnetização
     for j in range(colunas):
         Bx, By, Bz = field[j]*ux, field[j]*uy, field[j]*uz
         B_vec = np.array([Bx,By,Bz])
         for i in range(linhas):
-            #M0 = valores_entrada[5]#Chute Inicial da Magnetização
+            M0 = valores_entrada[5]#Chute Inicial da Magnetização
             for k in range(repeticoes): 
                 campos_efetivos = campo_efetivo(M0,g,Lambda,B_vec)
                 energia, psi  = hamiltoniano(J,campos_efetivos,Hc)
@@ -467,81 +469,7 @@ def modelo_magnetico_campo_magnetico(valores_entrada):
                     for c1 in range(numero_sub_redes):
                         mx += (pesos[c1]*mag_sub[c1][0])
                         my += (pesos[c1]*mag_sub[c1][1])
-                        mz += (pesos[c1]*mag_sub[c1][2])import os
-
-diretorio = r'C:\Users\Rodrigo_Gabi\OneDrive\Rodrigo\pos_graduacao\compostos_magnetocalorico\Dy_(1-x)Tb_(x)Al_(2)_test'
-
-con = ['0.00','0.15','0.25','0.40'] #concentração de Tb
-
-for count in con:
-    pasta1 = '\\x=' + count
-    new_diretorio = diretorio + pasta1
-    os.mkdir (new_diretorio)
-
-#------------------------EXEMPLO_1----------------------#
-
-miB = 0.0578838
-x = 0.25
-
-#-----------------------------------TÉRBIO-----------------------------#
-
-HC_TB = campo_cristalino_cubico([0.02,60,7560,0.9],6.)
-J_TB = operador_momento_angular(6.)
-g_TB = 3/2
-DIC_FAC_TB = (miB)*(np.array([1,1,1]))
-lam_TB = 0.615
-mm_TB = 158.92 #Pesquisar
-
-#-----------------------------------DY-----------------------------#
-
-HC_DY = campo_cristalino_cubico([-0.011,60,13860,0.3],15/2)
-J_DY = operador_momento_angular(15/2)
-g_DY = 4/3
-DIC_FAC_DY_1 = (miB)*(np.array([1,0,0]))
-lam_DY = 0.261
-mm_DY = 162.5
-
-#---------APLICAÇÃO _DO_MODELO_COM_DUAS_SUB-REDES-------------------#
-
-J = [J_DY,J_TB]
-HC = [HC_DY,HC_TB]
-g = np.array([g_DY,g_TB])
-
-T = np.arange(1., 120.1, 1.)
-chute_inicial = np.array([DIC_FAC_DY_1,DIC_FAC_TB])
-
-phi = np.array([np.pi/2,np.pi/2,np.arctan(np.sqrt(2))])
-theta = np.array([(np.pi)/4,0.,(np.pi)/4])
-
-dire = ['110','100','111']
-
-B = np.array([0.2,0.5,0.7,1.0,1.5,2.0,3.0,4.0,5.0])
-
-for k in con:
-    x = float(k)
-    concentracao = np.array([(1-x),x])
-    lam11 = ((1-x)**(0.25))*lam_DY 
-    lam22 =(x**(0.25))*lam_TB 
-    lam12 = lam21 = (x)*((1-x))*(0.3)
-    parametro_de_troca = np.array([[lam11,lam12],[lam21,lam22]])
-    entrada_nulo = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,np.array([0.]),0.,0.,T]
-    saida_nulo = modelo_magnetico_temperatura(entrada_nulo)
-    pasta = diretorio + '\\x=' + k
-    for i in range(len(phi)):
-        entrada = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,B,phi[i],theta[i],T]
-        resultados = modelo_magnetico_temperatura(entrada)
-        np.savetxt(pasta + '\mh_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[0],resultados[0]],fmt='%f')
-        np.savetxt(pasta + '\mag_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[1],resultados[1]],fmt='%f')
-        np.savetxt(pasta + '\entropia_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[2],resultados[2]],fmt='%f')
-        np.savetxt(pasta + '\energia_livre_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[3],resultados[3]],fmt='%f')
-        np.savetxt(pasta + '\mag_x_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[4][0],resultados[4][0]],fmt='%f')
-        np.savetxt(pasta + '\mag_y_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[5][0],resultados[5][0]],fmt='%f')
-        np.savetxt(pasta + '\mag_z_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[6][0],resultados[6][0]],fmt='%f')
-        np.savetxt(pasta + '\mag_x_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[4][1],resultados[4][1]],fmt='%f')
-        np.savetxt(pasta + '\mag_y_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[5][1],resultados[5][1]],fmt='%f')
-        np.savetxt(pasta + '\mag_z_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[6][1],resultados[6][1]],fmt='%f')
-        np.savetxt(pasta + '\entropia_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[7][0],resultados[7][0]],fmt='%f')
-        np.savetxt(pasta + '\entropia_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[7][1],resultados[7][1]],fmt='%f')
+                        mz += (pesos[c1]*mag_sub[c1][2])
                     vetor_mag = (np.array([mx, my, mz])) 
                     modulo_mag = (1/miB)*(linalg.norm(vetor_mag))
                     if field[i] == 0:
@@ -551,6 +479,8 @@ for k in con:
                     Mh[i,j] = (1/miB)*MH
                     break
     return Mh
+
+#------------------------------------EXEMPLO_1--------------------------------------#
 import os
 
 diretorio = r'C:\Users\Rodrigo_Gabi\OneDrive\Rodrigo\pos_graduacao\compostos_magnetocalorico\Dy_(1-x)Tb_(x)Al_(2)_test'
@@ -562,12 +492,9 @@ for count in con:
     new_diretorio = diretorio + pasta1
     os.mkdir (new_diretorio)
 
-#------------------------EXEMPLO_1----------------------#
-
 miB = 0.0578838
-x = 0.25
 
-#-----------------------------------TÉRBIO-----------------------------#
+#-----------------------------------TÉRBIO-----------------------------------#
 
 HC_TB = campo_cristalino_cubico([0.02,60,7560,0.9],6.)
 J_TB = operador_momento_angular(6.)
@@ -576,7 +503,7 @@ DIC_FAC_TB = (miB)*(np.array([1,1,1]))
 lam_TB = 0.615
 mm_TB = 158.92 #Pesquisar
 
-#----------------------------DISPRÓSIO---------------------------------#
+#--------------------------------DISPRÓSIO------------------------------------#
 
 HC_DY = campo_cristalino_cubico([-0.011,60,13860,0.3],15/2)
 J_DY = operador_momento_angular(15/2)
