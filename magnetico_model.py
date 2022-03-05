@@ -5,10 +5,7 @@ Created on Sat Jul  18 16:14:24 2020
 @author: Rodrigo S. de Oliveira
 """
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import linalg
-from scipy import integrate
-from scipy import interpolate
 
 #------------------------------SUB-ROTINAS-NECESSÁRIAS------------------------#
 
