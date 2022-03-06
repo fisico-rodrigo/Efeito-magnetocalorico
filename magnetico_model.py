@@ -476,15 +476,34 @@ def modelo_magnetico_campo_magnetico(valores_entrada):
                     Mh[i,j] = (1/miB)*MH
                     break
     return Mh
+#--------OUTRAS_SUB-ROTINAS_PARA_CALCULO_DE_GRANDEZAS_MAGNÉTICAS----------#
+
+def delta_S_magnético(entropia_sem_campo, entropia_com_campo):
+    linhas = entropia_com_campo.shape[0]
+    colunas = entropia_com_campo.shape[1]
+    d_s = np.zeros((linhas,colunas))
+    for count in range(colunas):
+        for count0 in range(linhas):
+            s0 = entropia_sem_campo[count0]
+            s = entropia_com_campo[count0,count]
+            d_s[count0,count] = s0 - s
+    return d_s
 
 #------------------------------------EXEMPLO_1--------------------------------------#
 import os
+import shutil
+
+from pathlib import Path
 
 diretorio = '.\\' # cria a pasta no diretório em que está o código .py
 
 composto = 'Dy_(1-x)Tb_(x)Al_(2)_test'
 
-os.mkdir(diretorio + composto)
+if os.path.isdir(diretorio + composto):
+    shutil.rmtree(diretorio + composto)
+    os.mkdir(diretorio + composto)
+else:
+    os.mkdir(diretorio + composto)
 
 
 con = ['0.00','0.15','0.25','0.40'] #concentração de Tb
@@ -545,6 +564,8 @@ for k in con:
     for i in range(len(phi)):
         entrada = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,B,phi[i],theta[i],T]
         resultados = modelo_magnetico_temperatura(entrada)
+        DS = delta_S_magnético(saida_nulo[2],resultados[2])
+        np.savetxt(pasta + '\delta_S_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,DS],fmt='%f')
         np.savetxt(pasta + '\mh_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[0],resultados[0]],fmt='%f')
         np.savetxt(pasta + '\mag_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[1],resultados[1]],fmt='%f')
         np.savetxt(pasta + '\entropia_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[2],resultados[2]],fmt='%f')
