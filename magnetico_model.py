@@ -480,9 +480,9 @@ def modelo_magnetico_campo_magnetico(valores_entrada):
 #------------------------------------EXEMPLO_1--------------------------------------#
 import os
 
-diretorio = R'C:\Users\Rod_Gabi\OneDrive\Rodrigo\pos_graduacao\compostos_magnetocalorico'#local em que está seu código
+diretorio = '.\\' # cria a pasta no diretório em que está o código .py
 
-composto = '\Dy_(1-x)Tb_(x)Al_(2)_test'
+composto = 'Dy_(1-x)Tb_(x)Al_(2)_test'
 
 os.mkdir(diretorio + composto)
 
