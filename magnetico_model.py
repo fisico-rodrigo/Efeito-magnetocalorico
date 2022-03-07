@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Jul  18 16:14:24 2020
-
 @author: Rodrigo S. de Oliveira
 """
 import numpy as np
+import numpy as np
+from datetime import datetime
 from scipy import linalg
+from joblib import Parallel, delayed
+
+N_JOBS = 8 # número de processo simultâneos (olhe o numero de processadores lógicos do seu pc)
 
 #------------------------------SUB-ROTINAS-NECESSÁRIAS------------------------#
 
@@ -338,8 +342,7 @@ A variável pesos é a concentração de cada sub-rede na rede total
 (np.array([p1,p1,...,pN])). A variável chute_inicial é o valor
 do chute inicial da magnetização para cada sub-rede e este deve ser escrito 
 da seguinte forma np.array([[m1x,m1y,m1z],[m2x,m2y,m2z],...,[mNx,mNy,mNz]])
-B é um array com os campos magnéticos que serão calculados os resultados
-(np.array([B1,B2,B3,...])). As varíaveis fi e teta são as direções do campo
+B é o campo magnético. As varíaveis fi e teta são as direções do campo
 magnético aplicado. fi é o ângulo polar e teta o angulo azimutal.
 T é um array com os valores de temperatura (exemplo:np.arange(1.,70.1,1.))
 '''
@@ -350,56 +353,54 @@ def modelo_magnetico_temperatura(valores_entrada):
     field,numero_sub_redes = valores_entrada[6], len(g)
     fi,theta = valores_entrada[7], valores_entrada[8]
     temperatura, miB = valores_entrada[9], 0.0578838 # Magneton de Bohr em meV
-    linhas, colunas = len(temperatura),len(field)
+    linhas = len(temperatura)
     Mag_sub_x, Mag_sub_y, Mag_sub_z, entropy_sub = [],[],[],[]    
     for count1 in range(numero_sub_redes):
-        Mag_sub_x.append(np.zeros((linhas,colunas)))
-        Mag_sub_y.append(np.zeros((linhas,colunas)))
-        Mag_sub_z.append(np.zeros((linhas,colunas)))
-        entropy_sub.append(np.zeros((linhas,colunas)))
-    Mh, Mag = np.zeros((linhas,colunas)),np.zeros((linhas,colunas))
-    entropy,free_energy = np.zeros((linhas,colunas)),np.zeros((linhas,colunas))
+        Mag_sub_x.append(np.zeros(linhas))
+        Mag_sub_y.append(np.zeros(linhas))
+        Mag_sub_z.append(np.zeros(linhas))
+        entropy_sub.append(np.zeros(linhas))
+    Mh, Mag = np.zeros(linhas),np.zeros(linhas)
+    entropy,free_energy = np.zeros(linhas),np.zeros(linhas)
     ux = (np.sin(fi))*(np.cos(theta))
     uy = (np.sin(fi))*(np.sin(theta))
     uz = (np.cos(fi))
     vec_u = np.array([ux,uy,uz]) #direção do campo aplicado
     repeticoes = 5000
+    Bx, By, Bz = field*ux, field*uy, field*uz
+    B_vec = np.array([Bx,By,Bz])
     M0 = valores_entrada[5]#Chute Inicial da Magnetização
-    for j in range(colunas):
-        Bx, By, Bz = field[j]*ux, field[j]*uy, field[j]*uz
-        B_vec = np.array([Bx,By,Bz])
-        for i in range(linhas):
-            #M0 = valores_entrada[5]#Chute Inicial da Magnetização
-            for k in range(repeticoes): 
-                campos_efetivos = campo_efetivo(M0,g,Lambda,B_vec)
-                energia, psi  = hamiltoniano(J,campos_efetivos,Hc)
-                mag_sub = funcao_magnetizacao(g,J,energia,psi,temperatura[i])
-                delta = np.sum(np.abs(mag_sub-M0))
-                if delta <= 0.0001:#autoconsistência.
-                    ener_livre = funcao_energia_livre(energia,temperatura[i])
-                    S_sub = funcao_entropia_magnetica(energia,temperatura[i])
-                    mx, my, mz, Entropia = 0., 0., 0., 0.
-                    for c1 in range(numero_sub_redes):
-                        mx += (pesos[c1]*mag_sub[c1][0])
-                        my += (pesos[c1]*mag_sub[c1][1])
-                        mz += (pesos[c1]*mag_sub[c1][2])
-                        Entropia += (pesos[c1]*S_sub[c1])
-                        Mag_sub_x[c1][i,j] = (1/miB)*(mag_sub[c1][0])
-                        Mag_sub_y[c1][i,j] = (1/miB)*(mag_sub[c1][1])
-                        Mag_sub_z[c1][i,j] = (1/miB)*(mag_sub[c1][2])
-                        entropy_sub[c1][i,j] = S_sub[c1]
-                    vetor_mag = (1/miB)*(np.array([mx, my, mz]))
-                    modulo_mag = (linalg.norm(vetor_mag))
-                    Mag[i,j],entropy[i,j] = modulo_mag, Entropia
-                    free_energy[i,j] = ener_livre
-                    if field[j] == 0:
-                        MH = modulo_mag
-                    else:
-                        MH = (np.dot(vetor_mag,vec_u))
-                    Mh[i,j] = MH
-                    break
-                else: 
-                    M0 = mag_sub
+    for i in range(linhas):
+        for k in range(repeticoes): 
+            campos_efetivos = campo_efetivo(M0,g,Lambda,B_vec)
+            energia, psi  = hamiltoniano(J,campos_efetivos,Hc)
+            mag_sub = funcao_magnetizacao(g,J,energia,psi,temperatura[i])
+            delta = np.sum(np.abs(mag_sub-M0))
+            if delta <= 0.001:#autoconsistência.
+                ener_livre = funcao_energia_livre(energia,temperatura[i])
+                S_sub = funcao_entropia_magnetica(energia,temperatura[i])
+                mx, my, mz, Entropia = 0., 0., 0., 0.
+                for c1 in range(numero_sub_redes):
+                    mx += (pesos[c1]*mag_sub[c1][0])
+                    my += (pesos[c1]*mag_sub[c1][1])
+                    mz += (pesos[c1]*mag_sub[c1][2])
+                    Entropia += (pesos[c1]*S_sub[c1])
+                    Mag_sub_x[c1][i] = (1/miB)*(mag_sub[c1][0])
+                    Mag_sub_y[c1][i] = (1/miB)*(mag_sub[c1][1])
+                    Mag_sub_z[c1][i] = (1/miB)*(mag_sub[c1][2])
+                    entropy_sub[c1][i] = S_sub[c1]
+                vetor_mag = (1/miB)*(np.array([mx, my, mz]))
+                modulo_mag = (linalg.norm(vetor_mag))
+                Mag[i],entropy[i] = modulo_mag, Entropia
+                free_energy[i] = ener_livre
+                if field == 0:
+                    MH = modulo_mag
+                else:
+                    MH = (np.dot(vetor_mag,vec_u))
+                Mh[i] = MH
+                break
+            else: 
+                M0 = mag_sub
               
     variaveis_saida = [None]*(8)
     variaveis_saida[0],variaveis_saida[1],variaveis_saida[2] = Mh,Mag,entropy
@@ -476,105 +477,138 @@ def modelo_magnetico_campo_magnetico(valores_entrada):
                     Mh[i,j] = (1/miB)*MH
                     break
     return Mh
+
 #--------OUTRAS_SUB-ROTINAS_PARA_CALCULO_DE_GRANDEZAS_MAGNÉTICAS----------#
 
-def delta_S_magnético(entropia_sem_campo, entropia_com_campo):
-    linhas = entropia_com_campo.shape[0]
-    colunas = entropia_com_campo.shape[1]
-    d_s = np.zeros((linhas,colunas))
-    for count in range(colunas):
-        for count0 in range(linhas):
-            s0 = entropia_sem_campo[count0]
-            s = entropia_com_campo[count0,count]
-            d_s[count0,count] = s0 - s
-    return d_s
 
 #------------------------------------EXEMPLO_1--------------------------------------#
+sub_rede_1 = 'Tb'
+sub_rede_2 = 'Dy'
+
+sub_redes = [sub_rede_1,sub_rede_2]
+
 import os
-import shutil
 
-from pathlib import Path
+diretorio = ''  # local em que está seu código
 
-diretorio = '.\\' # cria a pasta no diretório em que está o código .py
+data_hora = datetime.now()
+data_hora_formatada = data_hora.strftime('%Y_%m_%d_%H_%M_%S')
+composto = 'Dy_(1-x)Tb_(x)Al_(2)' + '_' + data_hora_formatada
 
-composto = 'Dy_(1-x)Tb_(x)Al_(2)_test'
+diretorio_composto = os.path.join(diretorio, composto)
 
-if os.path.isdir(diretorio + composto):
-    shutil.rmtree(diretorio + composto)
-    os.mkdir(diretorio + composto)
-else:
-    os.mkdir(diretorio + composto)
+if not os.path.exists(diretorio_composto):
+    os.mkdir(diretorio_composto)
 
-
-con = ['0.00','0.15','0.25','0.40'] #concentração de Tb
+con = ['0.00', '0.15', '0.25']  # concentração de Tb
 
 for count in con:
-    pasta1 = '\\x=' + count
-    new_diretorio = diretorio + composto + pasta1
-    os.mkdir(new_diretorio)
+    pasta1 = 'x=' + count
+    new_diretorio = os.path.join(diretorio_composto, pasta1)
+    if not os.path.exists(new_diretorio):
+        os.mkdir(new_diretorio)
 
-#------------------------EXEMPLO_1----------------------#
+# ------------------------EXEMPLO_1----------------------#
 
 miB = 0.0578838
 
-#-----------------------------------TÉRBIO-----------------------------#
+# -----------------------------------TÉRBIO-----------------------------#
 
-HC_TB = campo_cristalino_cubico([0.02,60,7560,0.9],6.)
+HC_TB = campo_cristalino_cubico([0.02, 60, 7560, 0.9], 6.)
 J_TB = operador_momento_angular(6.)
-g_TB = 3/2
-DIC_FAC_TB = (miB)*(np.array([1,1,1]))
+g_TB = 3 / 2
+DIC_FAC_TB = (miB) * (np.array([1, 1, 1]))
 lam_TB = 0.615
-mm_TB = 158.92 #Pesquisar
+mm_TB = 158.92  # Pesquisar
 
-#-----------------------------------DY-----------------------------#
+# -----------------------------------DY-----------------------------#
 
-HC_DY = campo_cristalino_cubico([-0.011,60,13860,0.3],15/2)
-J_DY = operador_momento_angular(15/2)
-g_DY = 4/3
-DIC_FAC_DY_1 = (miB)*(np.array([1,0,0]))
+HC_DY = campo_cristalino_cubico([-0.011, 60, 13860, 0.3], 15 / 2)
+J_DY = operador_momento_angular(15 / 2)
+g_DY = 4 / 3
+DIC_FAC_DY_1 = (miB) * (np.array([1, 0, 0]))
 lam_DY = 0.261
 mm_DY = 162.5
 
-#---------APLICAÇÃO _DO_MODELO_COM_DUAS_SUB-REDES-------------------#
+# ---------APLICAÇÃO _DO_MODELO_COM_DUAS_SUB-REDES-------------------#
 
-J = [J_DY,J_TB]
-HC = [HC_DY,HC_TB]
-g = np.array([g_DY,g_TB])
+J = [J_DY, J_TB]
+HC = [HC_DY, HC_TB]
+g = np.array([g_DY, g_TB])
 
 T = np.arange(1., 120.1, 1.)
-chute_inicial = np.array([DIC_FAC_DY_1,DIC_FAC_TB])
+chute_inicial = np.array([DIC_FAC_DY_1, DIC_FAC_TB])
 
-phi = np.array([np.pi/2,np.pi/2,np.arctan(np.sqrt(2))])
-theta = np.array([(np.pi)/4,0.,(np.pi)/4])
+phi = np.array([np.pi / 2, np.pi / 2, np.arctan(np.sqrt(2))])
+theta = np.array([(np.pi) / 4, 0., (np.pi) / 4])
 
-dire = ['110','100','111']
+dire = ['110', '100', '111']
 
-B = np.array([0.2,0.5,0.7,1.0,1.5,2.0,3.0,4.0,5.0])
+B = np.array([0.2, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0])
+
+deltaS = np.zeros((len(T),len(B)))
+mh  = np.zeros((len(T),len(B)+1))
+mag  = np.zeros((len(T),len(B)+1))
+entropia  = np.zeros((len(T),len(B)+1))
+E_livre  = np.zeros((len(T),len(B)+1))
+
+numero_sub_redes = len(sub_redes)
+Mag_sub_x, Mag_sub_y, Mag_sub_z, entropy_sub = [],[],[],[]
+for count1 in range(numero_sub_redes):
+        Mag_sub_x.append(np.zeros((len(T),len(B) + 1)))
+        Mag_sub_y.append(np.zeros((len(T),len(B)+ 1)))
+        Mag_sub_z.append(np.zeros((len(T),len(B)+ 1)))
+        entropy_sub.append(np.zeros((len(T),len(B)+ 1)))
 
 for k in con:
     x = float(k)
-    concentracao = np.array([(1-x),x])
-    lam11 = ((1-x)**(0.25))*lam_DY 
-    lam22 =(x**(0.25))*lam_TB 
-    lam12 = lam21 = (x)*((1-x))*(0.3)
-    parametro_de_troca = np.array([[lam11,lam12],[lam21,lam22]])
-    entrada_nulo = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,np.array([0.]),0.,0.,T]
+    concentracao = np.array([(1 - x), x])
+    lam11 = ((1 - x) ** (0.25)) * lam_DY
+    lam22 = (x ** (0.25)) * lam_TB
+    lam12 = lam21 = (x) * ((1 - x)) * (0.3)
+    parametro_de_troca = np.array([[lam11, lam12], [lam21, lam22]])
+    entrada_nulo = [J, HC, g, parametro_de_troca, concentracao, chute_inicial, 0., 0., 0., T]
     saida_nulo = modelo_magnetico_temperatura(entrada_nulo)
-    pasta = diretorio + composto + '\\x=' + k
+    mh[:,0] = saida_nulo[0]
+    mag[:,0] = saida_nulo[1]
+    entropia[:,0] = saida_nulo[2]
+    E_livre[:,0] = saida_nulo[3]
+    for l in range(numero_sub_redes):
+        Mag_sub_x[l][:,0] = saida_nulo[4][l]
+        Mag_sub_y[l][:,0] = saida_nulo[5][l]
+        Mag_sub_z[l][:,0] = saida_nulo[6][l]
+        entropy_sub[l][:,0] = saida_nulo[7][l] 
+    pasta = os.path.join(diretorio_composto, 'x=' + k)
     for i in range(len(phi)):
-        entrada = [J,HC,g,parametro_de_troca,concentracao,chute_inicial,B,phi[i],theta[i],T]
-        resultados = modelo_magnetico_temperatura(entrada)
-        DS = delta_S_magnético(saida_nulo[2],resultados[2])
-        np.savetxt(pasta + '\delta_S_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,DS],fmt='%f')
-        np.savetxt(pasta + '\mh_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[0],resultados[0]],fmt='%f')
-        np.savetxt(pasta + '\mag_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[1],resultados[1]],fmt='%f')
-        np.savetxt(pasta + '\entropia_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[2],resultados[2]],fmt='%f')
-        np.savetxt(pasta + '\energia_livre_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[3],resultados[3]],fmt='%f')
-        np.savetxt(pasta + '\mag_x_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[4][0],resultados[4][0]],fmt='%f')
-        np.savetxt(pasta + '\mag_y_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[5][0],resultados[5][0]],fmt='%f')
-        np.savetxt(pasta + '\mag_z_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[6][0],resultados[6][0]],fmt='%f')
-        np.savetxt(pasta + '\mag_x_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[4][1],resultados[4][1]],fmt='%f')
-        np.savetxt(pasta + '\mag_y_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[5][1],resultados[5][1]],fmt='%f')
-        np.savetxt(pasta + '\mag_z_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[6][1],resultados[6][1]],fmt='%f')
-        np.savetxt(pasta + '\entropia_Dy_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[7][0],resultados[7][0]],fmt='%f')
-        np.savetxt(pasta + '\entropia_Tb_x=' + k + '_direcao_' + dire[i] + '.txt',np.c_[T,saida_nulo[7][1],resultados[7][1]],fmt='%f')
+        for j in range(len(B)):
+            entrada = [J, HC, g, parametro_de_troca, concentracao, chute_inicial, B[j], phi[i], theta[i], T]
+            exit_model = modelo_magnetico_temperatura(entrada)
+            deltaS[:,j] = saida_nulo[2] - exit_model[2]
+            mh[:,j+1] = exit_model[0]
+            mag[:,j+1] = exit_model[1]
+            entropia[:,j+1] = exit_model[2]
+            E_livre[:,j+1] = exit_model[3]
+            for l in range(numero_sub_redes):
+                Mag_sub_x[l][:,j+1] = exit_model[4][l]
+                Mag_sub_y[l][:,j+1] = exit_model[5][l]
+                Mag_sub_z[l][:,j+1] = exit_model[6][l]
+                entropy_sub[l][:,j+1] = exit_model[7][l] 
+        np.savetxt(os.path.join(pasta, 'delta_S_x=' + k + '_direcao_' + dire[i] + '.txt'), np.c_[T, deltaS],
+                   fmt='%f')
+        np.savetxt(os.path.join(pasta, 'mh_x=' + k + '_direcao_' + dire[i] + '.txt'), np.c_[T,mh],
+                   fmt='%f')
+        np.savetxt(os.path.join(pasta, 'mag_x=' + k + '_direcao_' + dire[i] + '.txt'), np.c_[T, mag],
+                   fmt='%f')
+        np.savetxt(os.path.join(pasta, 'entropia_x=' + k + '_direcao_' + dire[i] + '.txt'), np.c_[T, entropia],
+                   fmt='%f')
+        np.savetxt(os.path.join(pasta, 'energia_livre_x=' + k + '_direcao_' + dire[i] + '.txt'),
+                   np.c_[T, E_livre], fmt='%f')
+        for cont in range(numero_sub_redes):
+            np.savetxt(os.path.join(pasta, 'mag_x_'+ sub_redes[cont] +'_x=' + k + '_direcao_' + dire[i] + '.txt'),
+                   np.c_[T, Mag_sub_x[cont]], fmt='%f')
+            np.savetxt(os.path.join(pasta, 'mag_y_'+ sub_redes[cont] +'_x=' + k + '_direcao_' + dire[i] + '.txt'),
+                   np.c_[T, Mag_sub_y[cont]], fmt='%f')
+            np.savetxt(os.path.join(pasta, 'mag_z_'+ sub_redes[cont] +'_x=' + k + '_direcao_' + dire[i] + '.txt'),
+                   np.c_[T, Mag_sub_z[cont]], fmt='%f')
+            np.savetxt(os.path.join(pasta, 'mag_z_'+ sub_redes[cont] +'_x=' + k + '_direcao_' + dire[i] + '.txt'),
+                   np.c_[T, entropy_sub[cont]], fmt='%f')
