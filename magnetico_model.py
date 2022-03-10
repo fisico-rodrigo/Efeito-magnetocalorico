@@ -70,18 +70,6 @@ def funcao_particao(energia,temperatura):
     return z
 
 '''
-A função energia_livre(energia,temp) calcula a energia livre 
-para uma rede com várias sub-redes
-'''
-def energia_livre(energia,temp):
-    C_B = 0.086 # Constante de Boltzmann em meV
-    sub_nets,ene_bolt, F = len(energia), (C_B)*(temp), 0
-    for i in range(sub_nets):
-        Z = funcao_particao(energia[i],temp)
-        F += (ene_bolt)*(np.log(Z))
-    return F
-
-'''
 A função funcao_energia_livre(energia,temperatura) é uma sub-rotina 
 necessária para a função modelo_magnetico(valores_entrada).
 '''
