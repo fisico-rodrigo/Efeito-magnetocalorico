@@ -156,7 +156,7 @@ def anisotropia_de_forma(d,spin):
     else:
         J = operadores(spin)
         Jz2 = J[2]@J[2]
-        Hc = -d*Jz2
+        Hc = d*Jz2
     return Hc
 '''
 A função campo_cristalino_cubico(constantes,spin) 
@@ -330,9 +330,9 @@ A variável pesos é a concentração de cada sub-rede na rede total
 (np.array([p1,p1,...,pN])). A variável chute_inicial é o valor
 do chute inicial da magnetização para cada sub-rede e este deve ser escrito 
 da seguinte forma np.array([[m1x,m1y,m1z],[m2x,m2y,m2z],...,[mNx,mNy,mNz]])
-B é um array com os campos magnéticos que serão calculados os resultados
-(np.array([B1,B2,B3,...])). As varíaveis fi e teta são as direções do campo
-magnético aplicado. fi é o ângulo polar e teta o angulo azimutal.
+B é um float que representa o campo magnético aplicado. 
+As varíaveis fi e teta são as direções do campo magnético aplicado. 
+fi é o ângulo polar e teta o angulo azimutal.
 T é um array com os valores de temperatura (exemplo:np.arange(1.,70.1,1.))
 '''
 
