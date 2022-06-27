@@ -431,15 +431,9 @@ diretorio_composto = os.path.join(diretorio, composto)
 if os.path.isdir(diretorio_composto):
     shutil.rmtree(diretorio_composto) #apaga a pasta "diretorio_composto" caso ela exista
     os.mkdir(diretorio_composto) #cria a pasta "diretorio_composto" vazia
-    
 else:
     os.mkdir(diretorio_composto)
     
-'''
-if not os.path.exists(diretorio_composto):
-    os.mkdir(diretorio_composto)
-'''    
-
 con = ['0.00','0.15','0.25','0.40'] #concentração de Tb
 
 for count in con:
