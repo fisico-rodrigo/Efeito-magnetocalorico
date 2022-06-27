@@ -308,7 +308,9 @@ def funcao_entropia_magnetica(energia,temperatura):
 
 from joblib import Parallel, delayed
 
-N_JOBS = 8 # número de processo simultâneos (olhe o numero de processadores lógicos do seu pc)
+import multiprocessing
+
+N_JOBS = multiprocessing.cpu_count()# número de processo simultâneos
 
 '''
 A função modelo_magnetico_temperatura(valores_entrada) calcula os valores de
