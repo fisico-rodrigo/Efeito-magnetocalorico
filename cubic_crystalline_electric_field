@@ -3,88 +3,80 @@ Created on Wed Feb 22 16:14:27 2023
 
 @author: Rod_Gabi
 """
-
-import numpy as np
-from scipy import linalg
-import matplotlib.pyplot as plt
-
-def delta_de_kronecker(m,n): #função delta de Kronecker
-    if m==n:
-        funcao = int(1)
-    else:
-        funcao = int(0)
-    return funcao
-
-'''
-A função operadores(momento_angular_total) função calcula as matrizes 
-Jx, Jy, Jz para um determinado valor de momento angular total atribuído 
-a variável MAT.
-'''
-
 def operador_momento_angular(MAT):
-    if MAT == 0:
-        MAT = 'Não existe operador momento angular total definido para J = 0.'
-        print('-> -> -> ERRO NA FUNÇÃO operadores(momento_angular_total)!')
-    else:
-        numero_de_linhas = int(2*(abs(MAT)) + 1)
-        numero_de_colunas = int(2*(abs(MAT)) + 1)
-        lam = (abs(MAT))*((abs(MAT)) + 1) 
-        #lam é o valor J(J+1) referente ao autovalor do operador J_quadrado.
-        Jz = np.zeros((numero_de_linhas,numero_de_colunas))
-        J_mais = np.zeros((numero_de_linhas,numero_de_colunas))
-        J_menos = np.zeros((numero_de_linhas,numero_de_colunas))
-        for i in range(numero_de_linhas):
-            m = (-1)*(abs(MAT)) + i
-            for k in range(numero_de_colunas):
-                n = (-1)*(abs(MAT)) + k
-                Jz[i,k] = (m)*(delta_de_kronecker(i,k))
-                J_menos[i,k]= ((lam-(n)*(n-1))**(0.5))*(delta_de_kronecker(i,k-1))
-                J_mais[i,k] = ((lam-(n)*(n+1))**(0.5))*(delta_de_kronecker(i,k+1))
-        Jx = (J_mais + J_menos)/2
-        Jy = (1/(2j))*(J_mais - J_menos)
-        operador_momento_total = np.array([Jx,Jy,Jz])
-    return operador_momento_total
+    from numpy import arange, sqrt, where, meshgrid, array
+    def delta_de_kronecker(m, n):
+        return where(m == n, 1, 0)
 
-def campo_cristalino_cubico(constantes,spin):
-    W, F4 = constantes[0],constantes[1]
-    F6, xsi = constantes[2], constantes[3]
-    if W==0:
-        Hc = 0
-    else:
-        momento_total = operador_momento_angular(spin)
-        Jx = momento_total[0]
-        Jy = momento_total[1]
-        Jz = momento_total[2] 
-        Jmais, I = Jx + (1j)*Jy, np.identity(len(Jx))
-        Jmenos = Jx - (1j)*Jy 
-        J, A = spin*I,(spin + 1)*I 
-        J2, J3 = J@J, J@J@J
-        A2, A3 = (A)@(A), (A)@(A)@(A)
-        Jz2, Jz4  = Jz@Jz, Jz@Jz@Jz@Jz
-        Jz6 = Jz@Jz@Jz@Jz@Jz@Jz
-        Jmais4 = Jmais@Jmais@Jmais@Jmais
-        Jmenos4 = Jmenos@Jmenos@Jmenos@Jmenos
-        x1 = (35)*(Jz4)
-        x2 = -(((30)*(J@A) - 25*I))@Jz2
-        x3 = (-6)*(J@A) 
-        x4 = (3)*(J2@A2)
-        O40 = x1 + x2 + x3 + x4
-        O44 = (1/2)*(Jmais4 + Jmenos4)
-        O4 = O40 + (5)*O44
-        y1 = 231*Jz6 - 315*J@A@Jz4 + 735*Jz4 
-        y2 = 105*J2@A2@Jz2 - 525*J@A@Jz2 + 294*Jz2
-        y3 = -5*J3@A3 + 40*J2@A2 - 60*J@A
-        O60 = y1 + y2 + y3
-        z1 = (11*Jz2 - J@A - 38*I)
-        z2 = (z1)@(Jmais4 + Jmenos4)
-        z3 = (Jmais4 + Jmenos4)@(z1)
-        O64 = (1/4)*(z2 + z3)
-        O6 = O60 + (-21)*O64
-        psi = (1-abs(xsi))
-        Hc = W*((xsi)*(O4/F4) + (psi)*(O6/F6))
+    abs_Mat = abs(MAT)
+
+    if abs_Mat == 0:
+        raise ValueError('Não é possivel contruir o operador J para J = 0!')
+
+    numero_de_linhas,numero_de_colunas = int(2*abs_Mat + 1), int(2*abs_Mat + 1)
+    array1,array2 = arange(numero_de_linhas),arange(numero_de_colunas)
+
+    i, k = meshgrid(array1, array2, indexing='ij')
+    
+    lam, m, n = abs_Mat*(abs_Mat + 1), (-1)*abs_Mat + i, (-1)*abs_Mat + k
+
+    Jz = m * delta_de_kronecker(i, k)
+    J_menos = sqrt(lam - n * (n - 1)) * delta_de_kronecker(i, k - 1)
+    J_mais = sqrt(lam - n * (n + 1)) * delta_de_kronecker(i, k + 1)
+
+    Jx = (J_mais + J_menos) / 2
+    Jy = (1 / (2j)) * (J_mais - J_menos)
+
+    return array([Jx, Jy, Jz])
+
+def campo_cristalino_cubico(constantes, spin):
+    from numpy import identity
+    
+    W, F4, F6, xsi = constantes
+
+    if W == 0:
+        return 0
+
+    momento_total = operador_momento_angular(spin)
+    Jx, Jy, Jz = momento_total[0], momento_total[1], momento_total[2] 
+    Jmais, I = Jx + 1j * Jy, identity(len(Jx))
+    Jmenos = Jx - 1j * Jy 
+    J, A = spin * I, (spin + 1) * I 
+    J2, J3 = J @ J, J @ J @ J
+    A2, A3 = A @ A, A @ A @ A
+    Jz2, Jz4 = Jz @ Jz, Jz @ Jz @ Jz @ Jz
+    Jz6 = Jz @ Jz @ Jz @ Jz @ Jz @ Jz
+    Jmais4 = Jmais @ Jmais @ Jmais @ Jmais
+    Jmenos4 = Jmenos @ Jmenos @ Jmenos @ Jmenos
+
+    x1 = 35 * Jz4
+    x2 = -((30 * (J @ A) - 25 * I) @ Jz2)
+    x3 = -6 * (J @ A) 
+    x4 = 3 * (J2 @ A2)
+    O40 = x1 + x2 + x3 + x4
+    O44 = 0.5 * (Jmais4 + Jmenos4)
+    O4 = O40 + 5 * O44
+
+    y1 = 231 * Jz6 - 315 * (J @ A @ Jz4) + 735 * Jz4 
+    y2 = 105 * (J2 @ A2 @ Jz2) - 525 * (J @ A @ Jz2) + 294 * Jz2
+    y3 = -5 * (J3 @ A3) + 40 * (J2 @ A2) - 60 * (J @ A)
+    O60 = y1 + y2 + y3
+
+    z1 = 11 * Jz2 - J @ A - 38 * I
+    z2 = z1 @ (Jmais4 + Jmenos4)
+    z3 = (Jmais4 + Jmenos4) @ z1
+    O64 = 0.25 * (z2 + z3)
+    O6 = O60 - 21 * O64
+
+    psi = 1 - abs(xsi)
+    Hc = W * ((xsi) * (O4 / F4) + (psi) * (O6 / F6))
+
     return Hc
 
-x = np.arange(-1.,1.1,0.001)
+from numpy import arange, savetxt, array, c_
+from scipy import linalg
+
+x = arange(-1.,1.1,0.001)
 
 Hc = []
 
@@ -94,14 +86,16 @@ for j in range(len(x)):
     autovalores, autovetores = linalg.eigh(H)
     Hc.append(autovalores)
 
-Hc = np.array(Hc)
+Hc = array(Hc)
 
-np.savetxt('niveis_de_energia' + '.txt',np.c_[x, Hc], fmt='%f')
+savetxt('niveis_de_energia' + '.txt',c_[x, Hc], fmt='%f')
+
+import matplotlib.pyplot as plt
 
 plt.figure(figsize=(8,6)) # figsize=(comprimento,largura)
 plt.plot (x , Hc,'-', linewidth=3.0) #, label = legenda_ds)
 plt.grid (True)
 plt.xlabel('$y$', fontsize=18, color='black', name='Times new Roman', fontstyle = 'oblique')
 plt.ylabel('$Energia$', fontsize=18, color='black', name='Times new Roman', fontstyle = 'oblique')
-plt.legend(loc=1, fontsize=10)
+plt.legend(loc='best', fontsize=10)
 plt.show()
